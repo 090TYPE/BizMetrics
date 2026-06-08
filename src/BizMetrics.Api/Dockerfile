@@ -2,7 +2,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY BizMetrics.sln ./
 COPY src/BizMetrics.Domain/*.csproj src/BizMetrics.Domain/
 COPY src/BizMetrics.Infrastructure/*.csproj src/BizMetrics.Infrastructure/
 COPY src/BizMetrics.Api/*.csproj src/BizMetrics.Api/

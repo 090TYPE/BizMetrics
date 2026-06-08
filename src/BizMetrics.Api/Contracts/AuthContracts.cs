@@ -2,17 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BizMetrics.Api.Contracts;
 
+// Validation attributes target the constructor parameters (no `property:` prefix):
+// ASP.NET Core model validation reads them from the parameter on positional records.
 public record RegisterRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required, MinLength(8)] string Password,
-    [property: Required] string FullName,
-    [property: Required] string OrganizationName);
+    [Required, EmailAddress] string Email,
+    [Required, MinLength(8)] string Password,
+    [Required] string FullName,
+    [Required] string OrganizationName);
 
 public record LoginRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required] string Password);
+    [Required, EmailAddress] string Email,
+    [Required] string Password);
 
-public record RefreshRequest([property: Required] string RefreshToken);
+public record RefreshRequest([Required] string RefreshToken);
 
 public record AuthResponse(
     string AccessToken,

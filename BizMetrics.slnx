@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BizMetrics.Api/BizMetrics.Api.csproj" />
+    <Project Path="src/BizMetrics.Domain/BizMetrics.Domain.csproj" />
+    <Project Path="src/BizMetrics.Infrastructure/BizMetrics.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BizMetrics.Tests/BizMetrics.Tests.csproj" />
+  </Folder>
+</Solution>

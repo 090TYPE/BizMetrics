@@ -2,6 +2,8 @@ using System.Text;
 using BizMetrics.Api.Auth;
 using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
+using BizMetrics.Infrastructure.Processing;
+using BizMetrics.Infrastructure.Storage;
 using BizMetrics.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -30,6 +32,15 @@ builder.Services.AddSingleton<ChannelEmailQueue>();
 builder.Services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<ChannelEmailQueue>());
 builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 builder.Services.AddHostedService<EmailBackgroundService>();
+
+// --- Object storage (S3/MinIO) ---
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+builder.Services.AddSingleton<IObjectStorage, S3ObjectStorage>();
+
+// --- Dataset processing (async via queue + hosted worker) ---
+builder.Services.AddSingleton<ChannelDatasetProcessingQueue>();
+builder.Services.AddSingleton<IDatasetProcessingQueue>(sp => sp.GetRequiredService<ChannelDatasetProcessingQueue>());
+builder.Services.AddHostedService<DatasetProcessingService>();
 builder.Services.AddSingleton<IAuthorizationHandler, MinimumRoleHandler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -87,6 +98,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await DbInitializer.MigrateAndSeedAsync(db);
+    await scope.ServiceProvider.GetRequiredService<IObjectStorage>().EnsureBucketAsync();
 }
 
 if (app.Environment.IsDevelopment())

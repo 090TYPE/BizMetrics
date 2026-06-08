@@ -54,7 +54,8 @@ export async function api<T>(
   retry = true,
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  // Let the browser set the multipart boundary for FormData uploads.
+  if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (tokens.access) headers.set("Authorization", `Bearer ${tokens.access}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
@@ -135,6 +136,40 @@ export const orgs = {
   mine: () => api<MyOrganization[]>("/api/orgs/mine"),
   switch: (orgId: string) =>
     api<AuthResponse>(`/api/orgs/${orgId}/switch`, { method: "POST" }),
+};
+
+// --- Datasets ---
+
+export interface Dataset {
+  id: string;
+  name: string;
+  status: "Pending" | "Processing" | "Ready" | "Failed";
+  rowCount: number;
+  columns: string[];
+  errorMessage: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export interface DatasetRows {
+  columns: string[];
+  rows: Record<string, string | null>[];
+  total: number;
+}
+
+export const datasets = {
+  list: () => api<Dataset[]>("/api/datasets"),
+  get: (id: string) => api<Dataset>(`/api/datasets/${id}`),
+  upload: (file: File, name: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("name", name);
+    return api<Dataset>("/api/datasets/upload", { method: "POST", body: form });
+  },
+  rows: (id: string, skip = 0, take = 50) =>
+    api<DatasetRows>(`/api/datasets/${id}/rows?skip=${skip}&take=${take}`),
+  downloadUrl: (id: string) => api<{ url: string }>(`/api/datasets/${id}/download-url`),
+  remove: (id: string) => api<void>(`/api/datasets/${id}`, { method: "DELETE" }),
 };
 
 // --- Invitations ---

@@ -18,8 +18,10 @@ data processing.**
 | -------- | ------------------------------------------------- |
 | Frontend | React 19 + TypeScript + Vite + React Router       |
 | Backend  | ASP.NET Core 10 Web API                           |
-| Data     | PostgreSQL 16 + EF Core 9                          |
+| Data     | PostgreSQL 16 + EF Core 9 (JSONB for parsed rows)  |
+| Storage  | MinIO (S3-compatible) via AWS SDK, presigned URLs  |
 | Auth     | JWT access tokens + rotating refresh tokens, BCrypt |
+| Async    | In-process channel queues + hosted workers (email, CSV parsing) |
 | Infra    | Docker Compose, GitHub Actions CI                 |
 
 ## Architecture
@@ -76,6 +78,7 @@ docker compose up --build
 - API → http://localhost:8080 (Swagger at `/swagger`)
 - Web → http://localhost:5173
 - Postgres → localhost:5432
+- MinIO → S3 API on localhost:9000, console on http://localhost:9001 (minioadmin / minioadmin)
 
 The API applies migrations and seeds billing plans automatically on startup.
 
@@ -118,7 +121,11 @@ dotnet test
 | GET    | `/api/invitations/{token}`                 | (public) | Preview an invitation (accept page)     |
 | POST   | `/api/invitations/accept`                  | (any)    | Accept an invitation, join the org      |
 | GET    | `/api/datasets`                            | (any)    | List the current org's datasets         |
-| POST   | `/api/datasets`                            | (any)    | Create a dataset (placeholder)          |
+| GET    | `/api/datasets/{id}`                       | (any)    | Dataset detail (status, schema, errors) |
+| POST   | `/api/datasets/upload`                     | (any)    | Upload a CSV → storage + queue parsing  |
+| GET    | `/api/datasets/{id}/rows`                  | (any)    | Paged preview of parsed rows            |
+| GET    | `/api/datasets/{id}/download-url`          | (any)    | Presigned URL for the raw file          |
+| DELETE | `/api/datasets/{id}`                        | (any)    | Delete a dataset and its rows           |
 | GET    | `/health`                                  | —        | Liveness probe                          |
 
 ### RBAC
@@ -135,7 +142,7 @@ change their own role.
 - [x] **Phase 0** — skeleton, auth (JWT + refresh), tenancy foundation, Docker, CI
 - [x] **Phase 1** — org management, RBAC via authorization policies, org switcher, team UI
 - [x] **Phase 2** — team invitations by email (async queue), accept flow, role management
-- [ ] **Phase 3** — CSV upload + background processing, object storage
+- [x] **Phase 3** — CSV upload to object storage + background parsing into JSONB, presigned URLs
 - [ ] **Phase 4** — analytics query engine, dashboards, charts, auto-insights
 - [ ] **Phase 5** — Stripe billing (checkout, portal, webhooks, trials, plan limits)
 - [ ] **Phase 6** — audit log, rate limiting, OAuth login, observability

@@ -1,27 +1,29 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { api } from "../api/client";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { datasets, type Dataset, type DatasetRows } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import TopBar from "../components/TopBar";
 
-interface Dataset {
-  id: string;
-  name: string;
-  status: string;
-  rowCount: number;
-  createdAt: string;
-}
+const STATUS_COLORS: Record<Dataset["status"], string> = {
+  Pending: "#fbbf24",
+  Processing: "#60a5fa",
+  Ready: "#34d399",
+  Failed: "#f87171",
+};
 
 export default function Dashboard() {
   const { state } = useAuth();
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [items, setItems] = useState<Dataset[]>([]);
   const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<{ id: string; data: DatasetRows } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    setLoading(true);
     try {
-      setDatasets(await api<Dataset[]>("/api/datasets"));
+      setItems(await datasets.list());
       setError(null);
     } catch (err) {
       setError((err as Error).message);
@@ -30,17 +32,49 @@ export default function Dashboard() {
     }
   };
 
-  // Reload whenever the active organization changes (e.g. via the switcher).
   useEffect(() => {
+    setLoading(true);
     void load();
   }, [state?.organizationId]);
 
-  const create = async (e: FormEvent) => {
+  // Poll while any dataset is still being processed.
+  useEffect(() => {
+    if (!items.some((d) => d.status === "Pending" || d.status === "Processing")) return;
+    const t = setInterval(load, 1500);
+    return () => clearInterval(t);
+  }, [items]);
+
+  const upload = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!file) return;
+    setUploading(true);
+    setError(null);
     try {
-      await api("/api/datasets", { method: "POST", body: JSON.stringify({ name }) });
+      await datasets.upload(file, name.trim() || file.name);
       setName("");
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const showRows = async (id: string) => {
+    try {
+      setPreview({ id, data: await datasets.rows(id, 0, 20) });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const remove = async (id: string, label: string) => {
+    if (!confirm(`Delete dataset "${label}"?`)) return;
+    try {
+      await datasets.remove(id);
+      if (preview?.id === id) setPreview(null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -53,24 +87,33 @@ export default function Dashboard() {
       <main>
         <h2>Datasets</h2>
         <p className="hint">
-          Tenant-scoped — you only ever see the current organization's data. CSV upload
-          and processing arrive in Phase&nbsp;3; for now create placeholder datasets.
+          Upload a CSV — it's stored in object storage and parsed by a background worker.
+          The status updates live as processing completes.
         </p>
 
-        <form className="inline" onSubmit={create}>
+        <form className="inline" onSubmit={upload}>
           <input
-            placeholder="New dataset name"
+            ref={fileInput}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <input
+            placeholder="Name (optional)"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <button type="submit">Add</button>
+          <button type="submit" disabled={!file || uploading}>
+            {uploading ? "Uploading…" : "Upload CSV"}
+          </button>
         </form>
 
         {error && <p className="error">{error}</p>}
+
         {loading ? (
           <p>Loading…</p>
-        ) : datasets.length === 0 ? (
-          <p className="hint">No datasets yet.</p>
+        ) : items.length === 0 ? (
+          <p className="hint">No datasets yet — upload a CSV to get started.</p>
         ) : (
           <table>
             <thead>
@@ -78,20 +121,64 @@ export default function Dashboard() {
                 <th>Name</th>
                 <th>Status</th>
                 <th>Rows</th>
+                <th>Columns</th>
                 <th>Created</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {datasets.map((d) => (
+              {items.map((d) => (
                 <tr key={d.id}>
                   <td>{d.name}</td>
-                  <td>{d.status}</td>
+                  <td>
+                    <span style={{ color: STATUS_COLORS[d.status] }}>● {d.status}</span>
+                    {d.status === "Failed" && d.errorMessage && (
+                      <div className="hint">{d.errorMessage}</div>
+                    )}
+                  </td>
                   <td>{d.rowCount}</td>
+                  <td>{d.columns.length}</td>
                   <td>{new Date(d.createdAt).toLocaleString()}</td>
+                  <td className="row-actions">
+                    {d.status === "Ready" && (
+                      <button className="ghost" onClick={() => void showRows(d.id)}>
+                        Preview
+                      </button>
+                    )}
+                    <button className="ghost danger" onClick={() => void remove(d.id, d.name)}>
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+
+        {preview && (
+          <section className="panel">
+            <h3>Preview ({preview.data.total} rows total)</h3>
+            <div className="scroll-x">
+              <table>
+                <thead>
+                  <tr>
+                    {preview.data.columns.map((c) => (
+                      <th key={c}>{c}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.data.rows.map((row, i) => (
+                    <tr key={i}>
+                      {preview.data.columns.map((c) => (
+                        <td key={c}>{row[c]}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
       </main>
     </div>

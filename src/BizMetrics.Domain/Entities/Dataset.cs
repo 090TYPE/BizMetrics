@@ -9,9 +9,9 @@ public enum DatasetStatus
 }
 
 /// <summary>
-/// A tenant-scoped uploaded data source (e.g. a CSV of sales). Included in
-/// Phase 0 as the first real tenant entity so the global query filter and the
-/// cross-tenant isolation tests have something concrete to operate on.
+/// A tenant-scoped uploaded data source (a CSV of e.g. sales). The raw file lives
+/// in object storage under <see cref="StorageKey"/>; a background worker parses it
+/// into <see cref="DataRow"/> records and fills in the schema and status.
 /// </summary>
 public class Dataset : ITenantEntity
 {
@@ -23,6 +23,16 @@ public class Dataset : ITenantEntity
     public DatasetStatus Status { get; set; } = DatasetStatus.Pending;
     public long RowCount { get; set; }
 
+    /// <summary>Object-storage key for the raw uploaded file.</summary>
+    public string? StorageKey { get; set; }
+
+    /// <summary>Detected column headers, in order.</summary>
+    public List<string> Columns { get; set; } = new();
+
+    /// <summary>Failure reason when <see cref="Status"/> is Failed.</summary>
+    public string? ErrorMessage { get; set; }
+
     public Guid UploadedByUserId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ProcessedAt { get; set; }
 }

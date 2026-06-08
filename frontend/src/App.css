@@ -172,6 +172,20 @@ button.danger {
   font-size: 0.85rem;
 }
 
+.row-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+input[type="file"] {
+  padding: 0.4rem;
+  font-size: 0.85rem;
+}
+
 main {
   padding: 2rem;
   max-width: 900px;

@@ -1,7 +1,14 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { auth, tokens, type AuthResponse } from "../api/client";
+import {
+  auth,
+  orgs,
+  tokens,
+  decodeToken,
+  type AuthResponse,
+} from "../api/client";
 
 interface AuthState {
+  userId: string;
   organizationId: string | null;
   role: string | null;
 }
@@ -16,36 +23,42 @@ interface AuthContextValue {
     fullName: string,
     organizationName: string,
   ) => Promise<void>;
+  switchOrg: (orgId: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function toState(r: AuthResponse): AuthState {
-  return { organizationId: r.organizationId, role: r.role };
+/** Derive the working state from whatever access token is currently stored. */
+function stateFromToken(): AuthState | null {
+  const claims = decodeToken(tokens.access);
+  if (!claims) return null;
+  return {
+    userId: claims.sub,
+    organizationId: claims.org_id ?? null,
+    role: claims.org_role ?? null,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState | null>(
-    tokens.access ? { organizationId: null, role: null } : null,
-  );
+  const [state, setState] = useState<AuthState | null>(stateFromToken);
 
-  const login = async (email: string, password: string) => {
-    const r = await auth.login({ email, password });
+  const apply = (r: AuthResponse) => {
     tokens.set(r);
-    setState(toState(r));
+    setState(stateFromToken());
   };
+
+  const login = async (email: string, password: string) =>
+    apply(await auth.login({ email, password }));
 
   const register = async (
     email: string,
     password: string,
     fullName: string,
     organizationName: string,
-  ) => {
-    const r = await auth.register({ email, password, fullName, organizationName });
-    tokens.set(r);
-    setState(toState(r));
-  };
+  ) => apply(await auth.register({ email, password, fullName, organizationName }));
+
+  const switchOrg = async (orgId: string) => apply(await orgs.switch(orgId));
 
   const logout = () => {
     tokens.clear();
@@ -54,7 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated: state !== null, state, login, register, logout }}
+      value={{
+        isAuthenticated: state !== null,
+        state,
+        login,
+        register,
+        switchOrg,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

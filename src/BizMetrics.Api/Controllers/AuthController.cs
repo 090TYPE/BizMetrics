@@ -5,7 +5,6 @@ using BizMetrics.Domain.Entities;
 using BizMetrics.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace BizMetrics.Api.Controllers;
 
@@ -15,13 +14,13 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ITokenService _tokens;
-    private readonly JwtOptions _jwt;
+    private readonly SessionService _sessions;
 
-    public AuthController(AppDbContext db, ITokenService tokens, IOptions<JwtOptions> jwt)
+    public AuthController(AppDbContext db, ITokenService tokens, SessionService sessions)
     {
         _db = db;
         _tokens = tokens;
-        _jwt = jwt.Value;
+        _sessions = sessions;
     }
 
     /// <summary>Registers a user, creates their organization, and starts a 14-day trial.</summary>
@@ -60,7 +59,7 @@ public class AuthController : ControllerBase
         _db.Memberships.Add(membership);
         await _db.SaveChangesAsync();
 
-        return await IssueTokensAsync(user, org.Id, OrgRole.Owner);
+        return await _sessions.IssueAsync(user, org.Id, OrgRole.Owner);
     }
 
     [HttpPost("login")]
@@ -71,14 +70,13 @@ public class AuthController : ControllerBase
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized(new { error = "Invalid credentials." });
 
-        // Pick the user's first active org as the working tenant. A real org
-        // switcher comes in Phase 1; for now login lands you in one org.
+        // Land in the user's first active org; the org switcher lets them move.
         var membership = await _db.Memberships
             .Where(m => m.UserId == user.Id && m.Status == MembershipStatus.Active)
             .OrderBy(m => m.CreatedAt)
             .FirstOrDefaultAsync();
 
-        return await IssueTokensAsync(user, membership?.OrganizationId, membership?.Role);
+        return await _sessions.IssueAsync(user, membership?.OrganizationId, membership?.Role);
     }
 
     [HttpPost("refresh")]
@@ -100,23 +98,7 @@ public class AuthController : ControllerBase
             .OrderBy(m => m.CreatedAt)
             .FirstOrDefaultAsync();
 
-        return await IssueTokensAsync(existing.User, membership?.OrganizationId, membership?.Role);
-    }
-
-    private async Task<AuthResponse> IssueTokensAsync(User user, Guid? orgId, OrgRole? role)
-    {
-        var access = _tokens.CreateAccessToken(user, orgId, role);
-        var (refresh, refreshHash) = _tokens.CreateRefreshToken();
-
-        _db.RefreshTokens.Add(new RefreshToken
-        {
-            UserId = user.Id,
-            TokenHash = refreshHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenDays)
-        });
-        await _db.SaveChangesAsync();
-
-        return new AuthResponse(access, refresh, user.Id, orgId, role?.ToString());
+        return await _sessions.IssueAsync(existing.User, membership?.OrganizationId, membership?.Role);
     }
 
     private async Task<string> UniqueSlugAsync(string name)

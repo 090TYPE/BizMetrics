@@ -3,6 +3,7 @@ using BizMetrics.Api.Auth;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -21,6 +22,8 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 
 // --- Auth ---
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<SessionService>();
+builder.Services.AddSingleton<IAuthorizationHandler, MinimumRoleHandler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -37,9 +40,14 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddOrgPolicies());
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(o =>
+        // Accept and emit enums as their names ("Admin") rather than integers,
+        // so role payloads match what the client sends.
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173"])

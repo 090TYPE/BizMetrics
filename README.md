@@ -98,21 +98,37 @@ cd frontend && npm install && npm run dev     # http://localhost:5173
 dotnet test
 ```
 
-## API (Phase 0)
+## API
 
-| Method | Route                | Auth | Purpose                                  |
-| ------ | -------------------- | ---- | ---------------------------------------- |
-| POST   | `/api/auth/register` | —    | Create user + organization, start trial  |
-| POST   | `/api/auth/login`    | —    | Authenticate, return token pair          |
-| POST   | `/api/auth/refresh`  | —    | Rotate refresh token, issue new access   |
-| GET    | `/api/datasets`      | JWT  | List the current org's datasets          |
-| POST   | `/api/datasets`      | JWT  | Create a dataset (placeholder)           |
-| GET    | `/health`            | —    | Liveness probe                           |
+| Method | Route                                      | Min role | Purpose                                 |
+| ------ | ------------------------------------------ | -------- | --------------------------------------- |
+| POST   | `/api/auth/register`                       | —        | Create user + organization, start trial |
+| POST   | `/api/auth/login`                          | —        | Authenticate, return token pair         |
+| POST   | `/api/auth/refresh`                        | —        | Rotate refresh token, issue new access  |
+| GET    | `/api/orgs/current`                        | Member   | Current organization details            |
+| PATCH  | `/api/orgs/current`                        | Admin    | Rename the organization                 |
+| GET    | `/api/orgs/current/members`                | Member   | List members                            |
+| PATCH  | `/api/orgs/current/members/{userId}/role`  | Admin    | Change a member's role (rule-checked)   |
+| DELETE | `/api/orgs/current/members/{userId}`       | Admin    | Remove a member (rule-checked)          |
+| GET    | `/api/orgs/mine`                           | (any)    | Orgs the user belongs to (switcher)     |
+| POST   | `/api/orgs/{orgId}/switch`                 | (any)    | Re-issue a token scoped to another org  |
+| GET    | `/api/datasets`                            | (any)    | List the current org's datasets         |
+| POST   | `/api/datasets`                            | (any)    | Create a dataset (placeholder)          |
+| GET    | `/health`                                  | —        | Liveness probe                          |
+
+### RBAC
+
+Roles are `Owner > Admin > Member > Viewer`. Endpoints are guarded by policy-based
+authorization ([`MinimumRoleRequirement`](src/BizMetrics.Api/Auth/MinimumRoleRequirement.cs)),
+and member administration enforces business rules via pure, unit-tested logic
+([`RoleManagementRules`](src/BizMetrics.Api/Authorization/RoleManagementRules.cs)) — e.g.
+the last Owner can't be demoted/removed, only an Owner can grant ownership, and no one can
+change their own role.
 
 ## Roadmap
 
 - [x] **Phase 0** — skeleton, auth (JWT + refresh), tenancy foundation, Docker, CI
-- [ ] **Phase 1** — org management, RBAC via authorization policies, org switcher
+- [x] **Phase 1** — org management, RBAC via authorization policies, org switcher, team UI
 - [ ] **Phase 2** — team invitations by email, role management
 - [ ] **Phase 3** — CSV upload + background processing, object storage
 - [ ] **Phase 4** — analytics query engine, dashboards, charts, auto-insights

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import TopBar from "../components/TopBar";
 
 interface Dataset {
   id: string;
@@ -11,15 +12,17 @@ interface Dataset {
 }
 
 export default function Dashboard() {
-  const { logout } = useAuth();
+  const { state } = useAuth();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     try {
       setDatasets(await api<Dataset[]>("/api/datasets"));
+      setError(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -27,9 +30,10 @@ export default function Dashboard() {
     }
   };
 
+  // Reload whenever the active organization changes (e.g. via the switcher).
   useEffect(() => {
     void load();
-  }, []);
+  }, [state?.organizationId]);
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,17 +49,11 @@ export default function Dashboard() {
 
   return (
     <div className="page">
-      <header className="topbar">
-        <strong>BizMetrics</strong>
-        <button className="ghost" onClick={logout}>
-          Sign out
-        </button>
-      </header>
-
+      <TopBar />
       <main>
         <h2>Datasets</h2>
         <p className="hint">
-          Tenant-scoped — you only ever see your own organization's data. CSV upload
+          Tenant-scoped — you only ever see the current organization's data. CSV upload
           and processing arrive in Phase&nbsp;3; for now create placeholder datasets.
         </p>
 

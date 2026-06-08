@@ -71,6 +71,72 @@ export async function api<T>(
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 
+// --- JWT helpers (read claims client-side; no verification — display only) ---
+
+export interface TokenClaims {
+  sub: string;
+  org_id?: string;
+  org_role?: string;
+}
+
+export function decodeToken(token: string | null): TokenClaims | null {
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json) as TokenClaims;
+  } catch {
+    return null;
+  }
+}
+
+// --- Organizations ---
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  subscriptionStatus: string;
+  trialEndsAt: string | null;
+  planName: string | null;
+}
+
+export interface Member {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  status: string;
+  joinedAt: string;
+}
+
+export interface MyOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+export const orgs = {
+  current: () => api<Organization>("/api/orgs/current"),
+  update: (name: string) =>
+    api<Organization>("/api/orgs/current", {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  members: () => api<Member[]>("/api/orgs/current/members"),
+  changeRole: (userId: string, role: string) =>
+    api<void>(`/api/orgs/current/members/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (userId: string) =>
+    api<void>(`/api/orgs/current/members/${userId}`, { method: "DELETE" }),
+  mine: () => api<MyOrganization[]>("/api/orgs/mine"),
+  switch: (orgId: string) =>
+    api<AuthResponse>(`/api/orgs/${orgId}/switch`, { method: "POST" }),
+};
+
 export const auth = {
   register: (body: {
     email: string;

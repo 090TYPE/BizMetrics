@@ -137,6 +137,42 @@ export const orgs = {
     api<AuthResponse>(`/api/orgs/${orgId}/switch`, { method: "POST" }),
 };
 
+// --- Invitations ---
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface InvitationPreview {
+  organizationName: string;
+  email: string;
+  role: string;
+  redeemable: boolean;
+}
+
+export const invitations = {
+  create: (email: string, role: string) =>
+    api<Invitation>("/api/orgs/current/invitations", {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    }),
+  list: () => api<Invitation[]>("/api/orgs/current/invitations"),
+  revoke: (id: string) =>
+    api<void>(`/api/orgs/current/invitations/${id}`, { method: "DELETE" }),
+  preview: (token: string) =>
+    api<InvitationPreview>(`/api/invitations/${encodeURIComponent(token)}`),
+  accept: (token: string) =>
+    api<void>("/api/invitations/accept", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+};
+
 export const auth = {
   register: (body: {
     email: string;

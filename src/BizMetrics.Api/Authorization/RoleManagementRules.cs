@@ -45,6 +45,18 @@ public static class RoleManagementRules
         return RuleResult.Ok;
     }
 
+    /// <summary>Can <paramref name="actorRole"/> invite a new member at <paramref name="invitedRole"/>?</summary>
+    public static RuleResult CanInvite(OrgRole actorRole, OrgRole invitedRole)
+    {
+        if (invitedRole == OrgRole.Owner && actorRole != OrgRole.Owner)
+            return RuleResult.Deny("Only an Owner can invite another Owner.");
+
+        if (actorRole != OrgRole.Owner && invitedRole <= actorRole)
+            return RuleResult.Deny("You cannot invite a member at a role equal to or higher than your own.");
+
+        return RuleResult.Ok;
+    }
+
     /// <summary>Can <paramref name="actorRole"/> remove the target member?</summary>
     public static RuleResult CanRemove(
         OrgRole actorRole,

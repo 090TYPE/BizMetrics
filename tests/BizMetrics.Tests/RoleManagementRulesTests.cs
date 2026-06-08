@@ -64,6 +64,30 @@ public class RoleManagementRulesTests
         Assert.True(r.Allowed);
     }
 
+    // --- CanInvite ---
+
+    [Fact]
+    public void Owner_can_invite_any_role()
+    {
+        Assert.True(RoleManagementRules.CanInvite(OrgRole.Owner, OrgRole.Owner).Allowed);
+        Assert.True(RoleManagementRules.CanInvite(OrgRole.Owner, OrgRole.Admin).Allowed);
+        Assert.True(RoleManagementRules.CanInvite(OrgRole.Owner, OrgRole.Viewer).Allowed);
+    }
+
+    [Fact]
+    public void Admin_cannot_invite_owner_or_admin()
+    {
+        Assert.False(RoleManagementRules.CanInvite(OrgRole.Admin, OrgRole.Owner).Allowed);
+        Assert.False(RoleManagementRules.CanInvite(OrgRole.Admin, OrgRole.Admin).Allowed);
+    }
+
+    [Fact]
+    public void Admin_can_invite_member_and_viewer()
+    {
+        Assert.True(RoleManagementRules.CanInvite(OrgRole.Admin, OrgRole.Member).Allowed);
+        Assert.True(RoleManagementRules.CanInvite(OrgRole.Admin, OrgRole.Viewer).Allowed);
+    }
+
     // --- CanRemove ---
 
     [Fact]

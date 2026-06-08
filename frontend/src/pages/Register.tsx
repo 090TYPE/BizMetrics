@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get("next") ?? "/";
   const [fullName, setFullName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,7 +20,7 @@ export default function Register() {
     setBusy(true);
     try {
       await register(email, password, fullName, organizationName);
-      navigate("/");
+      navigate(next);
     } catch (err) {
       setError((err as Error).message);
     } finally {

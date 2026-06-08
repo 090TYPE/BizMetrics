@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   orgs,
+  invitations,
   type Member,
   type Organization,
+  type Invitation,
 } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import TopBar from "../components/TopBar";
@@ -13,11 +15,18 @@ export default function Team() {
   const { state } = useAuth();
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [pending, setPending] = useState<Invitation[]>([]);
   const [orgName, setOrgName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("Member");
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const canManage = state?.role === "Owner" || state?.role === "Admin";
+  // Admins may only grant Member/Viewer; Owners may grant any role.
+  const assignable =
+    state?.role === "Owner" ? ROLES : ROLES.filter((r) => r !== "Owner" && r !== "Admin");
 
   const load = async () => {
     setLoading(true);
@@ -26,11 +35,36 @@ export default function Team() {
       setOrg(o);
       setOrgName(o.name);
       setMembers(m);
+      if (canManage) setPending(await invitations.list());
       setError(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const invite = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setNotice(null);
+    setError(null);
+    try {
+      await invitations.create(inviteEmail.trim(), inviteRole);
+      setInviteEmail("");
+      setNotice(`Invitation sent to ${inviteEmail.trim()} (check the API logs for the link).`);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const revokeInvite = async (id: string) => {
+    try {
+      await invitations.revoke(id);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -88,6 +122,56 @@ export default function Team() {
             />
             <button type="submit">Rename</button>
           </form>
+        )}
+
+        {canManage && (
+          <section className="panel">
+            <h3>Invite a member</h3>
+            <form className="inline" onSubmit={invite}>
+              <input
+                type="email"
+                placeholder="person@company.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+                {assignable.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <button type="submit">Send invite</button>
+            </form>
+            {notice && <p className="notice">{notice}</p>}
+
+            {pending.length > 0 && (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pending invite</th>
+                    <th>Role</th>
+                    <th>Expires</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.email}</td>
+                      <td>{i.role}</td>
+                      <td>{new Date(i.expiresAt).toLocaleDateString()}</td>
+                      <td>
+                        <button className="ghost danger" onClick={() => void revokeInvite(i.id)}>
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         )}
 
         {error && <p className="error">{error}</p>}
@@ -150,8 +234,9 @@ export default function Team() {
         )}
 
         <p className="hint">
-          Email invitations for new members arrive in Phase&nbsp;2. Role changes are
-          enforced server-side (e.g. the last Owner can't be demoted).
+          Invitations are emailed asynchronously (the dev sender logs the accept link).
+          Role and invite rules are enforced server-side — e.g. the last Owner can't be
+          demoted, and an Admin can't invite Owners.
         </p>
       </main>
     </div>

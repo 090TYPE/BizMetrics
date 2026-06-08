@@ -17,6 +17,11 @@ public interface ITokenService
     (string token, string hash) CreateRefreshToken();
 
     string HashRefreshToken(string token);
+
+    /// <summary>A random URL-safe opaque token plus its storage hash (e.g. invite links).</summary>
+    (string token, string hash) CreateOpaqueToken();
+
+    string HashToken(string token);
 }
 
 public class TokenService : ITokenService
@@ -52,14 +57,19 @@ public class TokenService : ITokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public (string token, string hash) CreateRefreshToken()
+    public (string token, string hash) CreateRefreshToken() => CreateOpaqueToken();
+
+    public string HashRefreshToken(string token) => HashToken(token);
+
+    public (string token, string hash) CreateOpaqueToken()
     {
-        var bytes = RandomNumberGenerator.GetBytes(64);
-        var token = Convert.ToBase64String(bytes);
-        return (token, HashRefreshToken(token));
+        // URL-safe base64 so the raw token can sit in an invite link unescaped.
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        return (token, HashToken(token));
     }
 
-    public string HashRefreshToken(string token)
+    public string HashToken(string token)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(hash);

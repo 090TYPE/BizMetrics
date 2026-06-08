@@ -154,6 +154,24 @@ button.danger {
   padding: 0.3rem 0.6rem;
 }
 
+.panel {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.notice {
+  color: #6ee7b7;
+  font-size: 0.85rem;
+}
+
 main {
   padding: 2rem;
   max-width: 900px;

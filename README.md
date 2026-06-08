@@ -112,6 +112,11 @@ dotnet test
 | DELETE | `/api/orgs/current/members/{userId}`       | Admin    | Remove a member (rule-checked)          |
 | GET    | `/api/orgs/mine`                           | (any)    | Orgs the user belongs to (switcher)     |
 | POST   | `/api/orgs/{orgId}/switch`                 | (any)    | Re-issue a token scoped to another org  |
+| POST   | `/api/orgs/current/invitations`            | Admin    | Invite an email to join (queues email)  |
+| GET    | `/api/orgs/current/invitations`            | Admin    | List pending invitations                |
+| DELETE | `/api/orgs/current/invitations/{id}`       | Admin    | Revoke a pending invitation             |
+| GET    | `/api/invitations/{token}`                 | (public) | Preview an invitation (accept page)     |
+| POST   | `/api/invitations/accept`                  | (any)    | Accept an invitation, join the org      |
 | GET    | `/api/datasets`                            | (any)    | List the current org's datasets         |
 | POST   | `/api/datasets`                            | (any)    | Create a dataset (placeholder)          |
 | GET    | `/health`                                  | —        | Liveness probe                          |
@@ -129,7 +134,7 @@ change their own role.
 
 - [x] **Phase 0** — skeleton, auth (JWT + refresh), tenancy foundation, Docker, CI
 - [x] **Phase 1** — org management, RBAC via authorization policies, org switcher, team UI
-- [ ] **Phase 2** — team invitations by email, role management
+- [x] **Phase 2** — team invitations by email (async queue), accept flow, role management
 - [ ] **Phase 3** — CSV upload + background processing, object storage
 - [ ] **Phase 4** — analytics query engine, dashboards, charts, auto-insights
 - [ ] **Phase 5** — Stripe billing (checkout, portal, webhooks, trials, plan limits)

@@ -1,5 +1,6 @@
 using System.Text;
 using BizMetrics.Api.Auth;
+using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,6 +24,12 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 // --- Auth ---
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<SessionService>();
+
+// --- Email (async via in-process queue + hosted drain) ---
+builder.Services.AddSingleton<ChannelEmailQueue>();
+builder.Services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<ChannelEmailQueue>());
+builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+builder.Services.AddHostedService<EmailBackgroundService>();
 builder.Services.AddSingleton<IAuthorizationHandler, MinimumRoleHandler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

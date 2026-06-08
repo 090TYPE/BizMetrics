@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Dataset> Datasets => Set<Dataset>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Invitation> Invitations => Set<Invitation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -56,6 +57,17 @@ public class AppDbContext : DbContext
             e.HasIndex(r => r.TokenHash);
             e.Property(r => r.TokenHash).HasMaxLength(200).IsRequired();
             e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId);
+        });
+
+        b.Entity<Invitation>(e =>
+        {
+            e.Property(i => i.Email).HasMaxLength(256).IsRequired();
+            e.Property(i => i.Role).HasConversion<string>();
+            e.Property(i => i.Status).HasConversion<string>();
+            e.Property(i => i.TokenHash).HasMaxLength(200).IsRequired();
+            e.HasIndex(i => i.TokenHash);
+            e.HasIndex(i => new { i.OrganizationId, i.Email });
+            e.HasOne(i => i.Organization).WithMany().HasForeignKey(i => i.OrganizationId);
         });
 
         b.Entity<Dataset>(e =>

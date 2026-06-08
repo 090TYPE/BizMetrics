@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Team from "./pages/Team";
+import Accept from "./pages/Accept";
 import type { JSX } from "react";
 import "./App.css";
 
@@ -18,6 +19,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/accept" element={<Accept />} />
         <Route
           path="/"
           element={

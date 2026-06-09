@@ -23,6 +23,8 @@ public class AppDbContext : DbContext
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Dataset> Datasets => Set<Dataset>();
     public DbSet<DataRow> DataRows => Set<DataRow>();
+    public DbSet<Dashboard> Dashboards => Set<Dashboard>();
+    public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
 
@@ -102,12 +104,29 @@ public class AppDbContext : DbContext
             e.HasOne(d => d.Dataset).WithMany().HasForeignKey(d => d.DatasetId);
         });
 
+        b.Entity<Dashboard>(e =>
+        {
+            e.Property(d => d.Name).HasMaxLength(200).IsRequired();
+            e.HasMany(d => d.Widgets).WithOne(w => w.Dashboard).HasForeignKey(w => w.DashboardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Widget>(e =>
+        {
+            e.Property(w => w.Title).HasMaxLength(200).IsRequired();
+            e.Property(w => w.ChartType).HasMaxLength(20);
+            e.Property(w => w.QueryJson).HasColumnType("jsonb");
+            e.HasIndex(w => w.DashboardId);
+        });
+
         // --- Multitenancy guardrail ---
         // Every entity implementing ITenantEntity is filtered by the current
         // tenant. With this in place a developer physically cannot query another
         // org's rows by forgetting a WHERE clause.
         b.Entity<Dataset>().HasQueryFilter(d => d.OrganizationId == _tenant.OrganizationId);
         b.Entity<DataRow>().HasQueryFilter(d => d.OrganizationId == _tenant.OrganizationId);
+        b.Entity<Dashboard>().HasQueryFilter(d => d.OrganizationId == _tenant.OrganizationId);
+        b.Entity<Widget>().HasQueryFilter(w => w.OrganizationId == _tenant.OrganizationId);
     }
 
     /// <summary>A value converter that (de)serializes <typeparamref name="T"/> to a JSONB column.</summary>

@@ -1,5 +1,6 @@
 using System.Text;
 using BizMetrics.Api.Auth;
+using BizMetrics.Infrastructure.Analytics;
 using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Processing;
@@ -41,6 +42,9 @@ builder.Services.AddSingleton<IObjectStorage, S3ObjectStorage>();
 builder.Services.AddSingleton<ChannelDatasetProcessingQueue>();
 builder.Services.AddSingleton<IDatasetProcessingQueue>(sp => sp.GetRequiredService<ChannelDatasetProcessingQueue>());
 builder.Services.AddHostedService<DatasetProcessingService>();
+
+// --- Analytics ---
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddSingleton<IAuthorizationHandler, MinimumRoleHandler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

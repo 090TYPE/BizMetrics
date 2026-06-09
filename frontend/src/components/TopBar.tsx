@@ -47,6 +47,7 @@ export default function TopBar() {
 
       <nav className="topbar-right">
         {link("/", "Datasets")}
+        {link("/dashboards", "Dashboards")}
         {link("/team", "Team")}
         <button className="ghost" onClick={logout}>
           Sign out

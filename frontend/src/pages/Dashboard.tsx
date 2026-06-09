@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { datasets, type Dataset, type DatasetRows } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import TopBar from "../components/TopBar";
@@ -141,9 +142,14 @@ export default function Dashboard() {
                   <td>{new Date(d.createdAt).toLocaleString()}</td>
                   <td className="row-actions">
                     {d.status === "Ready" && (
-                      <button className="ghost" onClick={() => void showRows(d.id)}>
-                        Preview
-                      </button>
+                      <>
+                        <Link className="ghost btn-link" to={`/datasets/${d.id}/explore`}>
+                          Explore
+                        </Link>
+                        <button className="ghost" onClick={() => void showRows(d.id)}>
+                          Preview
+                        </button>
+                      </>
                     )}
                     <button className="ghost danger" onClick={() => void remove(d.id, d.name)}>
                       Delete

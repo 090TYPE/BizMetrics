@@ -5,6 +5,9 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Team from "./pages/Team";
 import Accept from "./pages/Accept";
+import Explore from "./pages/Explore";
+import Dashboards from "./pages/Dashboards";
+import DashboardView from "./pages/DashboardView";
 import type { JSX } from "react";
 import "./App.css";
 
@@ -33,6 +36,30 @@ export default function App() {
           element={
             <RequireAuth>
               <Team />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/datasets/:id/explore"
+          element={
+            <RequireAuth>
+              <Explore />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/dashboards"
+          element={
+            <RequireAuth>
+              <Dashboards />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/dashboards/:id"
+          element={
+            <RequireAuth>
+              <DashboardView />
             </RequireAuth>
           }
         />

@@ -126,6 +126,13 @@ dotnet test
 | GET    | `/api/datasets/{id}/rows`                  | (any)    | Paged preview of parsed rows            |
 | GET    | `/api/datasets/{id}/download-url`          | (any)    | Presigned URL for the raw file          |
 | DELETE | `/api/datasets/{id}`                        | (any)    | Delete a dataset and its rows           |
+| POST   | `/api/datasets/{id}/query`                 | (any)    | Run an aggregation + get auto-insights  |
+| GET    | `/api/dashboards`                          | (any)    | List dashboards                         |
+| POST   | `/api/dashboards`                          | (any)    | Create a dashboard                      |
+| GET    | `/api/dashboards/{id}/data`                | (any)    | Dashboard with each widget computed     |
+| POST   | `/api/dashboards/{id}/widgets`             | (any)    | Save a chart (query) to a dashboard     |
+| DELETE | `/api/dashboards/{id}/widgets/{widgetId}`  | (any)    | Remove a widget                         |
+| DELETE | `/api/dashboards/{id}`                      | (any)    | Delete a dashboard                      |
 | GET    | `/health`                                  | —        | Liveness probe                          |
 
 ### RBAC
@@ -143,7 +150,7 @@ change their own role.
 - [x] **Phase 1** — org management, RBAC via authorization policies, org switcher, team UI
 - [x] **Phase 2** — team invitations by email (async queue), accept flow, role management
 - [x] **Phase 3** — CSV upload to object storage + background parsing into JSONB, presigned URLs
-- [ ] **Phase 4** — analytics query engine, dashboards, charts, auto-insights
+- [x] **Phase 4** — analytics aggregation engine (group-by + time series), auto-insights, saved dashboards & widgets, charts
 - [ ] **Phase 5** — Stripe billing (checkout, portal, webhooks, trials, plan limits)
 - [ ] **Phase 6** — audit log, rate limiting, OAuth login, observability
 - [ ] **Phase 7** — deploy + live demo + e2e tests

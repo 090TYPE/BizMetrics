@@ -186,6 +186,57 @@ input[type="file"] {
   font-size: 0.85rem;
 }
 
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.controls label {
+  font-size: 0.75rem;
+}
+
+.insights {
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.insights li {
+  margin: 0.25rem 0;
+}
+
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.widget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+a.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
 main {
   padding: 2rem;
   max-width: 900px;

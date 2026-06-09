@@ -172,6 +172,82 @@ export const datasets = {
   remove: (id: string) => api<void>(`/api/datasets/${id}`, { method: "DELETE" }),
 };
 
+// --- Analytics & dashboards ---
+
+export type Aggregation = "Count" | "Sum" | "Average" | "Min" | "Max";
+export type TimeBucket = "None" | "Day" | "Week" | "Month";
+export type ChartType = "bar" | "line" | "pie";
+
+export interface AnalyticsQuery {
+  groupBy?: string | null;
+  bucket?: TimeBucket;
+  measure?: string | null;
+  agg: Aggregation;
+  topN?: number | null;
+}
+
+export interface AnalyticsPoint {
+  key: string;
+  value: number;
+  count: number;
+}
+
+export interface QueryResult {
+  label: string;
+  points: AnalyticsPoint[];
+  insights: string[];
+}
+
+export interface DashboardSummary {
+  id: string;
+  name: string;
+  widgetCount: number;
+  createdAt: string;
+}
+
+export interface WidgetData {
+  id: string;
+  datasetId: string;
+  title: string;
+  chartType: ChartType;
+  position: number;
+  label: string;
+  points: AnalyticsPoint[];
+  insights: string[];
+}
+
+export interface DashboardData {
+  id: string;
+  name: string;
+  widgets: WidgetData[];
+}
+
+export const analytics = {
+  query: (datasetId: string, query: AnalyticsQuery) =>
+    api<QueryResult>(`/api/datasets/${datasetId}/query`, {
+      method: "POST",
+      body: JSON.stringify(query),
+    }),
+};
+
+export const dashboards = {
+  list: () => api<DashboardSummary[]>("/api/dashboards"),
+  create: (name: string) =>
+    api<DashboardSummary>("/api/dashboards", { method: "POST", body: JSON.stringify({ name }) }),
+  remove: (id: string) => api<void>(`/api/dashboards/${id}`, { method: "DELETE" }),
+  data: (id: string) => api<DashboardData>(`/api/dashboards/${id}/data`),
+  addWidget: (
+    id: string,
+    widget: { datasetId: string; title: string; chartType: ChartType; query: AnalyticsQuery },
+  ) =>
+    api<WidgetData>(`/api/dashboards/${id}/widgets`, {
+      method: "POST",
+      body: JSON.stringify(widget),
+    }),
+  removeWidget: (dashboardId: string, widgetId: string) =>
+    api<void>(`/api/dashboards/${dashboardId}/widgets/${widgetId}`, { method: "DELETE" }),
+};
+
 // --- Invitations ---
 
 export interface Invitation {

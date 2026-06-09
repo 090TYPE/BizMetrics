@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using BizMetrics.Api.Auth;
+using BizMetrics.Api.Demo;
 using BizMetrics.Api.Health;
 using BizMetrics.Infrastructure.Analytics;
 using BizMetrics.Infrastructure.Audit;
@@ -172,6 +173,14 @@ if (!app.Environment.IsEnvironment("Testing"))
     var stripeOpts = scope.ServiceProvider.GetRequiredService<IOptions<StripeOptions>>().Value;
     await DbInitializer.MigrateAndSeedAsync(db, stripeOpts.ProPriceId, stripeOpts.BusinessPriceId);
     await scope.ServiceProvider.GetRequiredService<IObjectStorage>().EnsureBucketAsync();
+
+    // Auto-seed demo workspace when DEMO_SEED=true (e.g. Fly.io review apps).
+    var demoSeed = app.Configuration["DEMO_SEED"];
+    if (string.Equals(demoSeed, "true", StringComparison.OrdinalIgnoreCase)
+        || app.Environment.IsDevelopment())
+    {
+        await DemoSeeder.SeedAsync(db);
+    }
 }
 
 if (app.Environment.IsDevelopment())

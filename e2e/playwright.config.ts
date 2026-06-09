@@ -1,9 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "path";
 
 /**
  * Run the full stack before e2e tests:
  *   docker compose up -d
- *   cd e2e && npm install && npm test
+ *   cd e2e && npm install && npx playwright install chromium && npm test
  *
  * Or point at a live instance:
  *   BASE_URL=https://bizmetrics-web.fly.dev npm test
@@ -16,6 +17,8 @@ export default defineConfig({
   workers: 1,
   reporter: [["html", { open: "never" }], ["list"]],
 
+  globalSetup: require.resolve("./global-setup"),
+
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:5173",
     trace: "on-first-retry",
@@ -26,7 +29,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // smoke tests use the pre-authenticated session by default;
+        // auth tests override this by navigating to /login explicitly.
+        storageState: path.join(__dirname, ".auth", "demo.json"),
+      },
     },
   ],
 });

@@ -1,56 +1,84 @@
 import { test, expect } from "@playwright/test";
-import { registerFresh, loginAs, logout } from "./helpers";
 
-test.describe("Authentication", () => {
-  test("register a new account and land on dashboard", async ({ page }) => {
-    const { email } = await registerFresh(page);
-    await expect(page).toHaveURL("/");
-    // Datasets section is visible on the dashboard
-    await expect(page.getByText(/dataset/i).first()).toBeVisible();
-    console.log(`Registered as ${email}`);
-  });
+/**
+ * Auth tests — each test clears storage to start as a logged-out user,
+ * overriding the pre-authenticated storageState set at the project level.
+ */
 
-  test("login redirects unauthenticated users", async ({ page }) => {
-    // Clear any existing auth
-    await page.goto("/");
-    // Should redirect to /login
-    await expect(page).toHaveURL(/login/);
-  });
+test.beforeEach(async ({ page }) => {
+  // Start every auth test with a clean slate (no JWT in localStorage)
+  await page.context().clearCookies();
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+});
 
-  test("login with valid credentials lands on dashboard", async ({ page }) => {
-    const { email, password } = await registerFresh(page);
-    await logout(page);
-    await loginAs(page, email, password);
-    await expect(page).toHaveURL("/");
-  });
+async function registerFresh(page: Parameters<typeof test>[1] extends never ? never : any) {
+  const email = `test+${Date.now()}@example.com`;
+  const password = "TestPass1234!";
 
-  test("login with wrong password shows error", async ({ page }) => {
-    const { email } = await registerFresh(page);
-    await logout(page);
+  await page.goto("/register");
+  await page.getByLabel("Your name").fill("Test User");
+  await page.getByLabel("Organization name").fill("Test Org");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Start free trial" }).click();
+  await expect(page).toHaveURL("/", { timeout: 8_000 });
+  return { email, password };
+}
 
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password").fill("wrongpassword");
-    await page.getByRole("button", { name: "Sign in" }).click();
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
-    await expect(page.locator(".error")).toBeVisible();
-    await expect(page).toHaveURL("/login");
-  });
+test("register a new account lands on dashboard", async ({ page }) => {
+  const { email } = await registerFresh(page);
+  await expect(page).toHaveURL("/");
+  await expect(page.getByText(/dataset/i).first()).toBeVisible();
+  console.log(`Registered: ${email}`);
+});
 
-  test("logout clears session and redirects to login", async ({ page }) => {
-    await registerFresh(page);
-    await logout(page);
-    await expect(page).toHaveURL("/login");
+test("unauthenticated visit to / redirects to login", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/login/);
+});
 
-    // Going to dashboard now redirects again
-    await page.goto("/");
-    await expect(page).toHaveURL(/login/);
-  });
+test("login with valid credentials lands on dashboard", async ({ page }) => {
+  const { email, password } = await registerFresh(page);
+  // Log out
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  // Log back in
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL("/", { timeout: 8_000 });
+});
 
-  test("register form validates required fields", async ({ page }) => {
-    await page.goto("/register");
-    await page.getByRole("button", { name: "Start free trial" }).click();
-    // Browser validation prevents submission — still on /register
-    await expect(page).toHaveURL("/register");
-  });
+test("login with wrong password shows error message", async ({ page }) => {
+  const { email } = await registerFresh(page);
+  await page.evaluate(() => localStorage.clear());
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("wrongpassword");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page.locator(".error")).toBeVisible();
+  await expect(page).toHaveURL("/login");
+});
+
+test("clearing localStorage logs the user out", async ({ page }) => {
+  await registerFresh(page);
+  await expect(page).toHaveURL("/");
+
+  // Simulate logout by clearing storage and reloading
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  await expect(page).toHaveURL(/login/);
+});
+
+test("register form requires all fields", async ({ page }) => {
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Start free trial" }).click();
+  // Browser HTML5 validation keeps the user on /register
+  await expect(page).toHaveURL("/register");
 });

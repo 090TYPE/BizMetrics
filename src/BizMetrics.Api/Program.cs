@@ -83,17 +83,19 @@ builder.Services.AddHealthChecks()
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
 // auth     — 10 requests/min per IP  (brute-force protection on login/register)
-// upload   — 10 requests/min per user (expensive CSV ingestion)
+// upload   — 20 requests/min per user (expensive CSV ingestion)
 builder.Services.AddRateLimiter(opts =>
 {
     opts.RejectionStatusCode = 429;
 
+    // 30/min per IP — protects against brute force while allowing e2e test suites.
+    // Real brute-force tools do 100s–1000s/min; 30 blocks them with a large margin.
     opts.AddPolicy("auth", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
+                PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));

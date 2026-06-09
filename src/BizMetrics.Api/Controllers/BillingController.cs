@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using BizMetrics.Api.Auth;
 using BizMetrics.Api.Contracts;
+using BizMetrics.Domain.Audit;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Audit;
 using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Tenancy;
@@ -24,18 +26,21 @@ public class BillingController : ControllerBase
     private readonly BillingService _billing;
     private readonly ITenantContext _tenant;
     private readonly StripeOptions _stripe;
+    private readonly AuditService _audit;
 
     public BillingController(
-        AppDbContext db,
-        BillingService billing,
-        ITenantContext tenant,
-        IOptions<StripeOptions> stripe)
+        AppDbContext db, BillingService billing,
+        ITenantContext tenant, IOptions<StripeOptions> stripe,
+        AuditService audit)
     {
         _db = db;
         _billing = billing;
         _tenant = tenant;
         _stripe = stripe.Value;
+        _audit = audit;
     }
+
+    private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     /// <summary>Returns the current plan, subscription status, trial countdown, and usage.</summary>
     [HttpGet]
@@ -89,6 +94,10 @@ public class BillingController : ControllerBase
         {
             var url = await _billing.CreateCheckoutSessionAsync(
                 orgId.Value, req.Plan, userEmail, req.SuccessUrl, req.CancelUrl);
+
+            await _audit.LogAsync(User.GetUserId(), AuditActions.CheckoutStarted, "Organization",
+                orgId.Value.ToString(), new { plan = req.Plan }, ipAddress: ClientIp);
+
             return Ok(new { url });
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not configured"))
@@ -111,6 +120,10 @@ public class BillingController : ControllerBase
         try
         {
             var url = await _billing.CreatePortalSessionAsync(orgId.Value, req.ReturnUrl);
+
+            await _audit.LogAsync(User.GetUserId(), AuditActions.PortalOpened, "Organization",
+                orgId.Value.ToString(), null, ipAddress: ClientIp);
+
             return Ok(new { url });
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not configured"))

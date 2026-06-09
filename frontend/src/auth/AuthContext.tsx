@@ -17,6 +17,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   state: AuthState | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -51,6 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) =>
     apply(await auth.login({ email, password }));
 
+  const loginWithGoogle = async (idToken: string) =>
+    apply(await auth.loginWithGoogle(idToken));
+
   const register = async (
     email: string,
     password: string,
@@ -71,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: state !== null,
         state,
         login,
+        loginWithGoogle,
         register,
         switchOrg,
         logout,

@@ -1,7 +1,9 @@
 using BizMetrics.Api.Auth;
 using BizMetrics.Api.Authorization;
 using BizMetrics.Api.Contracts;
+using BizMetrics.Domain.Audit;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Audit;
 using BizMetrics.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,12 +18,16 @@ public class OrganizationsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly SessionService _sessions;
+    private readonly AuditService _audit;
 
-    public OrganizationsController(AppDbContext db, SessionService sessions)
+    public OrganizationsController(AppDbContext db, SessionService sessions, AuditService audit)
     {
         _db = db;
         _sessions = sessions;
+        _audit = audit;
     }
+
+    private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     // --- Current organization ---
 
@@ -46,8 +52,12 @@ public class OrganizationsController : ControllerBase
         var org = await _db.Organizations.Include(o => o.Plan).FirstOrDefaultAsync(o => o.Id == orgId);
         if (org is null) return NotFound();
 
+        var oldName = org.Name;
         org.Name = req.Name.Trim();
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.OrgRenamed, "Organization",
+            org.Id.ToString(), new { from = oldName, to = org.Name }, ipAddress: ClientIp);
 
         return new OrganizationDto(
             org.Id, org.Name, org.Slug,
@@ -92,8 +102,14 @@ public class OrganizationsController : ControllerBase
             ownerCount: ownerCount);
         if (!rule.Allowed) return Denied(rule.Error!);
 
+        var oldRole = target.Role;
         target.Role = req.Role;
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.MemberRoleChanged, "Membership",
+            userId.ToString(), new { from = oldRole.ToString(), to = req.Role.ToString() },
+            ipAddress: ClientIp);
+
         return NoContent();
     }
 
@@ -119,6 +135,10 @@ public class OrganizationsController : ControllerBase
 
         _db.Memberships.Remove(target);
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.MemberRemoved, "Membership",
+            userId.ToString(), new { role = target.Role.ToString() }, ipAddress: ClientIp);
+
         return NoContent();
     }
 

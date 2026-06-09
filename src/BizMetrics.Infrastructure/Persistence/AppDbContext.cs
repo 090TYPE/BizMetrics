@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<StripeEventLog> StripeEventLogs => Set<StripeEventLog>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -56,6 +57,16 @@ public class AppDbContext : DbContext
             e.HasKey(s => s.EventId);
             e.Property(s => s.EventId).HasMaxLength(200);
             e.Property(s => s.EventType).HasMaxLength(100).IsRequired();
+        });
+
+        b.Entity<AuditEntry>(e =>
+        {
+            e.Property(a => a.Action).HasMaxLength(100).IsRequired();
+            e.Property(a => a.EntityType).HasMaxLength(100).IsRequired();
+            e.Property(a => a.EntityId).HasMaxLength(200);
+            e.Property(a => a.IpAddress).HasMaxLength(50);
+            // Composite index for tenant-paginated queries: org + time descending
+            e.HasIndex(a => new { a.OrganizationId, a.CreatedAt });
         });
 
         b.Entity<Membership>(e =>

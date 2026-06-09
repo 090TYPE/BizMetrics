@@ -1,7 +1,9 @@
 using BizMetrics.Api.Auth;
 using BizMetrics.Api.Authorization;
 using BizMetrics.Api.Contracts;
+using BizMetrics.Domain.Audit;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Audit;
 using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
@@ -20,17 +22,21 @@ public class InvitationsController : ControllerBase
     private readonly IEmailQueue _email;
     private readonly IConfiguration _config;
     private readonly PlanGuard _guard;
+    private readonly AuditService _audit;
 
     public InvitationsController(
         AppDbContext db, ITokenService tokens, IEmailQueue email,
-        IConfiguration config, PlanGuard guard)
+        IConfiguration config, PlanGuard guard, AuditService audit)
     {
         _db = db;
         _tokens = tokens;
         _email = email;
         _config = config;
         _guard = guard;
+        _audit = audit;
     }
+
+    private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     private const int ExpiryDays = 7;
     private string FrontendUrl => _config["App:FrontendUrl"] ?? "http://localhost:5173";
@@ -85,6 +91,10 @@ public class InvitationsController : ControllerBase
             Subject: $"You're invited to {org.Name} on BizMetrics",
             Body: $"You've been invited to join {org.Name} as {req.Role}. Accept here: {link}"));
 
+        await _audit.LogAsync(User.GetUserId(), AuditActions.MemberInvited, "Invitation",
+            invite.Id.ToString(), new { email, role = req.Role.ToString() },
+            ipAddress: ClientIp);
+
         return new InvitationDto(invite.Id, invite.Email, invite.Role.ToString(),
             invite.Status.ToString(), invite.ExpiresAt, invite.CreatedAt);
     }
@@ -113,6 +123,10 @@ public class InvitationsController : ControllerBase
 
         invite.Status = InvitationStatus.Revoked;
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.InvitationRevoked, "Invitation",
+            id.ToString(), new { email = invite.Email }, ipAddress: ClientIp);
+
         return NoContent();
     }
 
@@ -163,6 +177,10 @@ public class InvitationsController : ControllerBase
         invite.Status = InvitationStatus.Accepted;
         invite.AcceptedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(user.Id, AuditActions.MemberJoined, "Membership",
+            user.Id.ToString(), new { role = invite.Role.ToString() },
+            orgIdOverride: invite.OrganizationId, ipAddress: ClientIp);
 
         return NoContent();
     }

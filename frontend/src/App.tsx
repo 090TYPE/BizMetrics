@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,8 +18,11 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined ?? "";
+
 export default function App() {
   return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -74,5 +78,6 @@ export default function App() {
         />
       </Routes>
     </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }

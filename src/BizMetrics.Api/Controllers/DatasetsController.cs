@@ -1,11 +1,14 @@
 using BizMetrics.Api.Auth;
+using BizMetrics.Domain.Audit;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Audit;
 using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Processing;
 using BizMetrics.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace BizMetrics.Api.Controllers;
@@ -24,16 +27,20 @@ public class DatasetsController : ControllerBase
     private readonly IObjectStorage _storage;
     private readonly IDatasetProcessingQueue _queue;
     private readonly PlanGuard _guard;
+    private readonly AuditService _audit;
 
     public DatasetsController(
         AppDbContext db, IObjectStorage storage,
-        IDatasetProcessingQueue queue, PlanGuard guard)
+        IDatasetProcessingQueue queue, PlanGuard guard, AuditService audit)
     {
         _db = db;
         _storage = storage;
         _queue = queue;
         _guard = guard;
+        _audit = audit;
     }
+
+    private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     public record DatasetDto(
         Guid Id, string Name, string Status, long RowCount,
@@ -61,6 +68,7 @@ public class DatasetsController : ControllerBase
     /// <summary>Uploads a CSV, stores it, and queues it for background parsing.</summary>
     [HttpPost("upload")]
     [RequestSizeLimit(64 * 1024 * 1024)]
+    [EnableRateLimiting("upload")]  // 10 uploads/min per user
     public async Task<ActionResult<DatasetDto>> Upload([FromForm] IFormFile file, [FromForm] string? name)
     {
         if (file is null || file.Length == 0)
@@ -94,6 +102,10 @@ public class DatasetsController : ControllerBase
         await _db.SaveChangesAsync();
 
         await _queue.EnqueueAsync(datasetId);
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.DatasetUploaded, "Dataset",
+            datasetId.ToString(), new { name = dataset.Name, size = file.Length },
+            ipAddress: ClientIp);
 
         return CreatedAtAction(nameof(Get), new { id = datasetId }, ToDto(dataset));
     }
@@ -132,9 +144,14 @@ public class DatasetsController : ControllerBase
         var dataset = await _db.Datasets.FirstOrDefaultAsync(d => d.Id == id);
         if (dataset is null) return NotFound();
 
+        var datasetName = dataset.Name;
         await _db.DataRows.Where(r => r.DatasetId == id).ExecuteDeleteAsync();
         _db.Datasets.Remove(dataset);
         await _db.SaveChangesAsync();
+
+        await _audit.LogAsync(User.GetUserId(), AuditActions.DatasetDeleted, "Dataset",
+            id.ToString(), new { name = datasetName }, ipAddress: ClientIp);
+
         return NoContent();
     }
 

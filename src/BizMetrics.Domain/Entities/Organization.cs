@@ -20,8 +20,9 @@ public class Organization
     /// <summary>URL-friendly unique handle, e.g. "acme-co".</summary>
     public string Slug { get; set; } = string.Empty;
 
-    // Billing — populated in Phase 5.
+    // Billing
     public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
     public Guid? PlanId { get; set; }
     public Plan? Plan { get; set; }
     public SubscriptionStatus SubscriptionStatus { get; set; } = SubscriptionStatus.Trialing;

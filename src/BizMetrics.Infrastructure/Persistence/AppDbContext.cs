@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
+    public DbSet<StripeEventLog> StripeEventLogs => Set<StripeEventLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -44,8 +45,17 @@ public class AppDbContext : DbContext
             e.HasIndex(o => o.Slug).IsUnique();
             e.Property(o => o.Name).HasMaxLength(200).IsRequired();
             e.Property(o => o.Slug).HasMaxLength(100).IsRequired();
+            e.Property(o => o.StripeCustomerId).HasMaxLength(200);
+            e.Property(o => o.StripeSubscriptionId).HasMaxLength(200);
             e.Property(o => o.SubscriptionStatus).HasConversion<string>();
             e.HasOne(o => o.Plan).WithMany().HasForeignKey(o => o.PlanId);
+        });
+
+        b.Entity<StripeEventLog>(e =>
+        {
+            e.HasKey(s => s.EventId);
+            e.Property(s => s.EventId).HasMaxLength(200);
+            e.Property(s => s.EventType).HasMaxLength(100).IsRequired();
         });
 
         b.Entity<Membership>(e =>

@@ -44,6 +44,12 @@ services:
       # URLs handed to the browser must use "localhost".
       Storage__Endpoint: "http://minio:9000"
       Storage__PublicEndpoint: "http://localhost:9000"
+      # Stripe billing — set these to real test-mode keys to enable billing.
+      # Leave blank to run in demo mode (billing UI shown but checkout disabled).
+      Stripe__SecretKey: ""
+      Stripe__WebhookSecret: ""
+      Stripe__ProPriceId: ""
+      Stripe__BusinessPriceId: ""
     ports:
       - "8080:8080"
     depends_on:

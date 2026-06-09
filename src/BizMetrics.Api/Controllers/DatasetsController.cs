@@ -1,5 +1,6 @@
 using BizMetrics.Api.Auth;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Processing;
 using BizMetrics.Infrastructure.Storage;
@@ -22,12 +23,16 @@ public class DatasetsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IObjectStorage _storage;
     private readonly IDatasetProcessingQueue _queue;
+    private readonly PlanGuard _guard;
 
-    public DatasetsController(AppDbContext db, IObjectStorage storage, IDatasetProcessingQueue queue)
+    public DatasetsController(
+        AppDbContext db, IObjectStorage storage,
+        IDatasetProcessingQueue queue, PlanGuard guard)
     {
         _db = db;
         _storage = storage;
         _queue = queue;
+        _guard = guard;
     }
 
     public record DatasetDto(
@@ -63,6 +68,11 @@ public class DatasetsController : ControllerBase
 
         var orgId = User.GetOrganizationId();
         if (orgId is null) return Forbid();
+
+        // Enforce subscription status and dataset-count limit
+        var (allowed, reason) = await _guard.CanUploadDatasetAsync();
+        if (!allowed)
+            return StatusCode(StatusCodes.Status402PaymentRequired, new { error = reason });
 
         var datasetId = Guid.NewGuid();
         var safeName = Path.GetFileName(file.FileName);

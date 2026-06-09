@@ -8,8 +8,8 @@ This repository is built as a portfolio piece demonstrating the things that sepa
 production SaaS from a CRUD app: **tenant isolation, RBAC, Stripe billing, and background
 data processing.**
 
-> **Status:** Phase 0 complete — solution skeleton, authentication (JWT + refresh),
-> the multitenancy foundation (EF Core global query filter), Docker Compose, and CI.
+> **Status:** Phases 0–5 complete — authentication, multitenancy, RBAC, team invitations,
+> CSV processing, analytics engine, dashboards, and Stripe billing.
 > See the [roadmap](#roadmap) below.
 
 ## Stack
@@ -22,6 +22,7 @@ data processing.**
 | Storage  | MinIO (S3-compatible) via AWS SDK, presigned URLs  |
 | Auth     | JWT access tokens + rotating refresh tokens, BCrypt |
 | Async    | In-process channel queues + hosted workers (email, CSV parsing) |
+| Billing  | Stripe Checkout + Customer Portal + webhooks (idempotent) |
 | Infra    | Docker Compose, GitHub Actions CI                 |
 
 ## Architecture
@@ -133,6 +134,10 @@ dotnet test
 | POST   | `/api/dashboards/{id}/widgets`             | (any)    | Save a chart (query) to a dashboard     |
 | DELETE | `/api/dashboards/{id}/widgets/{widgetId}`  | (any)    | Remove a widget                         |
 | DELETE | `/api/dashboards/{id}`                      | (any)    | Delete a dashboard                      |
+| GET    | `/api/billing`                             | Member   | Plan, subscription status, trial, usage |
+| POST   | `/api/billing/checkout`                    | Member   | Create Stripe Checkout session URL      |
+| POST   | `/api/billing/portal`                      | Member   | Create Stripe Customer Portal URL       |
+| POST   | `/api/webhooks/stripe`                     | —        | Receive Stripe events (sig-verified)    |
 | GET    | `/health`                                  | —        | Liveness probe                          |
 
 ### RBAC
@@ -151,7 +156,7 @@ change their own role.
 - [x] **Phase 2** — team invitations by email (async queue), accept flow, role management
 - [x] **Phase 3** — CSV upload to object storage + background parsing into JSONB, presigned URLs
 - [x] **Phase 4** — analytics aggregation engine (group-by + time series), auto-insights, saved dashboards & widgets, charts
-- [ ] **Phase 5** — Stripe billing (checkout, portal, webhooks, trials, plan limits)
+- [x] **Phase 5** — Stripe billing (checkout, portal, webhooks, trials, plan limits)
 - [ ] **Phase 6** — audit log, rate limiting, OAuth login, observability
 - [ ] **Phase 7** — deploy + live demo + e2e tests
 

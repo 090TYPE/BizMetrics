@@ -49,6 +49,7 @@ export default function TopBar() {
         {link("/", "Datasets")}
         {link("/dashboards", "Dashboards")}
         {link("/team", "Team")}
+        {link("/billing", "Billing")}
         <button className="ghost" onClick={logout}>
           Sign out
         </button>

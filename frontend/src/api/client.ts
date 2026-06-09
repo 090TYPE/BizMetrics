@@ -284,6 +284,40 @@ export const invitations = {
     }),
 };
 
+// --- Billing ---
+
+export interface BillingUsage {
+  datasetsUsed: number;
+  datasetsMax: number;
+  membersUsed: number;
+  membersMax: number;
+}
+
+export interface BillingStatus {
+  planName: string;
+  priceMonthly: number;
+  subscriptionStatus: string;
+  trialEndsAt: string | null;
+  trialDaysLeft: number | null;
+  hasStripeCustomer: boolean;
+  stripeConfigured: boolean;
+  usage: BillingUsage;
+}
+
+export const billing = {
+  status: () => api<BillingStatus>("/api/billing"),
+  checkout: (plan: string, successUrl: string, cancelUrl: string) =>
+    api<{ url: string }>("/api/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan, successUrl, cancelUrl }),
+    }),
+  portal: (returnUrl: string) =>
+    api<{ url: string }>("/api/billing/portal", {
+      method: "POST",
+      body: JSON.stringify({ returnUrl }),
+    }),
+};
+
 export const auth = {
   register: (body: {
     email: string;

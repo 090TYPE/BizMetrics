@@ -8,6 +8,7 @@ import Accept from "./pages/Accept";
 import Explore from "./pages/Explore";
 import Dashboards from "./pages/Dashboards";
 import DashboardView from "./pages/DashboardView";
+import Billing from "./pages/Billing";
 import type { JSX } from "react";
 import "./App.css";
 
@@ -60,6 +61,14 @@ export default function App() {
           element={
             <RequireAuth>
               <DashboardView />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/billing"
+          element={
+            <RequireAuth>
+              <Billing />
             </RequireAuth>
           }
         />

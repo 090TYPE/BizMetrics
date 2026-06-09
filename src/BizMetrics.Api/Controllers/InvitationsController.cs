@@ -2,6 +2,7 @@ using BizMetrics.Api.Auth;
 using BizMetrics.Api.Authorization;
 using BizMetrics.Api.Contracts;
 using BizMetrics.Domain.Entities;
+using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -18,14 +19,17 @@ public class InvitationsController : ControllerBase
     private readonly ITokenService _tokens;
     private readonly IEmailQueue _email;
     private readonly IConfiguration _config;
+    private readonly PlanGuard _guard;
 
     public InvitationsController(
-        AppDbContext db, ITokenService tokens, IEmailQueue email, IConfiguration config)
+        AppDbContext db, ITokenService tokens, IEmailQueue email,
+        IConfiguration config, PlanGuard guard)
     {
         _db = db;
         _tokens = tokens;
         _email = email;
         _config = config;
+        _guard = guard;
     }
 
     private const int ExpiryDays = 7;
@@ -43,6 +47,11 @@ public class InvitationsController : ControllerBase
 
         var rule = RoleManagementRules.CanInvite(actorRole, req.Role);
         if (!rule.Allowed) return Denied(rule.Error!);
+
+        // Enforce member-count plan limit before creating the invitation
+        var (limitOk, limitReason) = await _guard.CanInviteMemberAsync();
+        if (!limitOk)
+            return StatusCode(StatusCodes.Status402PaymentRequired, new { error = limitReason });
 
         var alreadyMember = await _db.Memberships
             .Include(m => m.User)

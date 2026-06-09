@@ -1,6 +1,7 @@
 using System.Text;
 using BizMetrics.Api.Auth;
 using BizMetrics.Infrastructure.Analytics;
+using BizMetrics.Infrastructure.Billing;
 using BizMetrics.Infrastructure.Email;
 using BizMetrics.Infrastructure.Persistence;
 using BizMetrics.Infrastructure.Processing;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +47,12 @@ builder.Services.AddHostedService<DatasetProcessingService>();
 
 // --- Analytics ---
 builder.Services.AddScoped<AnalyticsService>();
+
+// --- Billing (Stripe) ---
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
+builder.Services.AddScoped<BillingService>();
+builder.Services.AddScoped<PlanGuard>();
+
 builder.Services.AddSingleton<IAuthorizationHandler, MinimumRoleHandler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -101,7 +109,8 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbInitializer.MigrateAndSeedAsync(db);
+    var stripeOpts = scope.ServiceProvider.GetRequiredService<IOptions<StripeOptions>>().Value;
+    await DbInitializer.MigrateAndSeedAsync(db, stripeOpts.ProPriceId, stripeOpts.BusinessPriceId);
     await scope.ServiceProvider.GetRequiredService<IObjectStorage>().EnsureBucketAsync();
 }
 
